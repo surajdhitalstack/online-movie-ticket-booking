@@ -48,9 +48,9 @@ export default function PaymentModal({
     
     // Credentials Validation
     if (paymentMethod === 'esewa') {
-      if (username.trim() !== '9828942340' || password !== '6969') {
+      if (username.trim() !== '9800000000' || password !== 'demo123') {
         setStatus('error');
-        setErrorMessage('Invalid digital wallet credentials! Try username: 9828942340 & password: 6969');
+        setErrorMessage('Invalid digital wallet credentials! Try username: 9800000000 & password: demo123');
         return;
       }
     }
@@ -213,7 +213,7 @@ export default function PaymentModal({
                         <input
                           type="text"
                           required
-                          placeholder="Demo account: 9828942340"
+                          placeholder="Demo account: 9800000000"
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
                           disabled={processing}
@@ -227,7 +227,7 @@ export default function PaymentModal({
                         <input
                           type="password"
                           required
-                          placeholder="Demo password: 6969"
+                          placeholder="Demo password: demo123"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           disabled={processing}
