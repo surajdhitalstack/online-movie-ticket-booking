@@ -1,0 +1,6 @@
+{
+  "name": "CinePremium Nepal",
+  "description": "Premium Movie Ticketing Portal for the Nepali market, featuring eSewa payment integration, real-time seat reservation, dynamic ticket generation, and high-end visual design.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
