@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { User, Mail, Eye, EyeOff, Film, ArrowRight, Shield } from 'lucide-react';
 
 interface OnboardingAuthModalProps {
-  onSignIn: (user: { name: string; email: string }) => void;
+  onSignIn: (user: { name: string; email: string; isAdmin?: boolean }) => void;
   onLater: () => void;
 }
 
@@ -17,16 +17,39 @@ export default function OnboardingAuthModal({ onSignIn, onLater }: OnboardingAut
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !email.includes('@')) {
-      setError('Please enter a valid email address');
-      return;
+    const cleanEmail = email.trim().toLowerCase();
+    const isUserAdmin = cleanEmail === 'admin' || cleanEmail === 'admin@cinepremium.com';
+
+    if (!isUserAdmin) {
+      if (!email || !email.includes('@')) {
+        setError('Please enter a valid email address');
+        return;
+      }
     }
+
     if (isSignMode && !password) {
       setError('Please enter your password');
       return;
     }
-    if (!isSignMode && !name) {
-      setError('Please enter your full name');
+
+    if (!isSignMode) {
+      if (!name) {
+        setError('Please enter your full name');
+        return;
+      }
+      if (cleanEmail.includes('admin') || name.toLowerCase().includes('admin')) {
+        setError('The username, name, or email is reserved for system administrators.');
+        return;
+      }
+    }
+
+    if (isSignMode && isUserAdmin) {
+      const ADMIN_PASSWORD = 'AdminCinePremium2026!'; // Highly secure password (uppercase, lowercase, number, symbol, > 12 characters)
+      if (password !== ADMIN_PASSWORD) {
+        setError('Invalid administrator credentials.');
+        return;
+      }
+      onSignIn({ name: 'Administrator', email: 'admin@cinepremium.com', isAdmin: true });
       return;
     }
 

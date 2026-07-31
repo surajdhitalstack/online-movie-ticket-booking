@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Play, Pause, Star, Clock, Globe, Ticket, ChevronDown } from 'lucide-react';
 import { Movie } from '../types';
-import { MOVIES } from '../data';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface NowShowingCarouselProps {
   selectedMovieId: string;
   onMovieSelect: (id: string) => void;
+  movies: Movie[];
 }
 
 export default function NowShowingCarousel({
   selectedMovieId,
   onMovieSelect,
+  movies,
 }: NowShowingCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
@@ -19,11 +20,11 @@ export default function NowShowingCarousel({
 
   // Sync index if selection comes from outer components (like the grid)
   useEffect(() => {
-    const matchedIndex = MOVIES.findIndex((m) => m.id === selectedMovieId);
+    const matchedIndex = movies.findIndex((m) => m.id === selectedMovieId);
     if (matchedIndex !== -1 && matchedIndex !== currentIndex) {
       setCurrentIndex(matchedIndex);
     }
-  }, [selectedMovieId]);
+  }, [selectedMovieId, movies]);
 
   // Autoplay loop definition
   useEffect(() => {
@@ -31,9 +32,9 @@ export default function NowShowingCarousel({
       clearInterval(autoplayTimer.current);
     }
 
-    if (isPlaying) {
+    if (isPlaying && movies.length > 0) {
       autoplayTimer.current = setInterval(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % MOVIES.length);
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % movies.length);
       }, 4000); // Auto-plays every 4 seconds
     }
 
@@ -42,16 +43,18 @@ export default function NowShowingCarousel({
         clearInterval(autoplayTimer.current);
       }
     };
-  }, [isPlaying]);
+  }, [isPlaying, movies]);
 
   const handleNext = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % MOVIES.length);
+    if (movies.length === 0) return;
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % movies.length);
   };
 
   const handlePrev = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setCurrentIndex((prevIndex) => (prevIndex - 1 + MOVIES.length) % MOVIES.length);
+    if (movies.length === 0) return;
+    setCurrentIndex((prevIndex) => (prevIndex - 1 + movies.length) % movies.length);
   };
 
   const handleDotClick = (index: number, e: React.MouseEvent) => {
@@ -59,9 +62,10 @@ export default function NowShowingCarousel({
     setCurrentIndex(index);
   };
 
-  const activeMovie = MOVIES[currentIndex];
+  const activeMovie = movies[currentIndex] || movies[0];
 
   const handleSelectMovie = () => {
+    if (!activeMovie) return;
     onMovieSelect(activeMovie.id);
     // Dynamic scroll helper to move smoothly down to schedules
     const targetElement = document.getElementById('session-showtimes-scheduler-section');
@@ -69,6 +73,14 @@ export default function NowShowingCarousel({
       targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  if (!activeMovie) {
+    return (
+      <div className="h-[40vh] flex items-center justify-center bg-black text-neutral-450 uppercase tracking-widest font-mono text-xs">
+        No Exhibitions Available
+      </div>
+    );
+  }
 
   const isOuterSelected = selectedMovieId === activeMovie.id;
 
@@ -202,7 +214,7 @@ export default function NowShowingCarousel({
 
         {/* Bullet indicators */}
         <div className="flex gap-1">
-          {MOVIES.map((movie, idx) => {
+          {movies.map((movie, idx) => {
             const isSlideActive = idx === currentIndex;
             return (
               <button

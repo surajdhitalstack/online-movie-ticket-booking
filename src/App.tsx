@@ -16,13 +16,16 @@ import UpcomingMovies from './components/UpcomingMovies';
 import SpecialEvents from './components/SpecialEvents';
 import Footer from './components/Footer';
 import { MOVIES, CINEMA_LOCATIONS, getHallSeatingLayout, getSeatCategoryAndPrice } from './data';
+import { Movie } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import OnboardingAuthModal from './components/OnboardingAuthModal';
+import MyBookingsModal from './components/MyBookingsModal';
+import AdminPanelModal from './components/AdminPanelModal';
 import { ArrowRight } from 'lucide-react';
 
 export default function App() {
   // User Authentication hooks
-  const [user, setUser] = useState<{ name: string; email: string } | null>(() => {
+  const [user, setUser] = useState<{ name: string; email: string; isAdmin?: boolean } | null>(() => {
     try {
       const saved = localStorage.getItem('cinepremium_user');
       return saved ? JSON.parse(saved) : null;
@@ -39,7 +42,7 @@ export default function App() {
     }
   });
 
-  const handleUserSignIn = (profile: { name: string; email: string }) => {
+  const handleUserSignIn = (profile: { name: string; email: string; isAdmin?: boolean }) => {
     setUser(profile);
     localStorage.setItem('cinepremium_user', JSON.stringify(profile));
     setShowAuthModal(false);
@@ -57,9 +60,39 @@ export default function App() {
   // Cinema Hall selection
   const [selectedHall, setSelectedHall] = useState<string>(CINEMA_LOCATIONS[0]);
   
+  // Dynamic Movies State (initialized with fallback to maintain instant offline availability)
+  const [movies, setMovies] = useState<Movie[]>(MOVIES);
+  const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
+  
   // Selected Film spotlight
   const [selectedMovieId, setSelectedMovieId] = useState<string>(MOVIES[0].id);
-  const activeMovie = MOVIES.find((m) => m.id === selectedMovieId) || MOVIES[0];
+  const activeMovie = movies.find((m) => m.id === selectedMovieId) || movies[0] || MOVIES[0];
+
+  // Fetch dynamic movies from Express/Firestore database API
+  const loadDynamicMovies = () => {
+    fetch('/api/movies')
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load catalog");
+        return res.json();
+      })
+      .then((data) => {
+        if (data.movies && data.movies.length > 0) {
+          setMovies(data.movies);
+          // Auto-adjust spotlight if the current movie is de-listed
+          const stillExists = data.movies.some((m: any) => m.id === selectedMovieId);
+          if (!stillExists) {
+            setSelectedMovieId(data.movies[0].id);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading dynamic movies:", err);
+      });
+  };
+
+  useEffect(() => {
+    loadDynamicMovies();
+  }, []);
 
   // Showtime slot allocation
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
@@ -67,45 +100,55 @@ export default function App() {
   // Seat reservations mapping array
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   
-  // Occupied seats that randomize for every combination of hall, movie, and showtime
+  // Occupied seats that synchronize with the backend database
   const [occupiedSeats, setOccupiedSeats] = useState<string[]>([]);
+  const [loadingSeats, setLoadingSeats] = useState<boolean>(false);
 
-  // Randomize occupied seats for each individual combination of hall, movie, and timeslot slot
+  // Fetch occupied seats from Express API or fallback deterministically
   useEffect(() => {
     if (!selectedTimeSlot) {
       setOccupiedSeats([]);
       return;
     }
 
-    const layout = getHallSeatingLayout(selectedHall);
-    const key = `${selectedHall}-${selectedMovieId}-${selectedTimeSlot}`;
-    
-    // Seed-based PRNG to make selected slot persistent & stable
-    let seed = 0;
-    for (let i = 0; i < key.length; i++) {
-      seed += key.charCodeAt(i) * (i + 1);
-    }
-    
-    const seededRandom = () => {
-      const x = Math.sin(seed++) * 10000;
-      return x - Math.floor(x);
-    };
-
-    const generatedOccupied: string[] = [];
-    layout.rows.forEach((row) => {
-      layout.columns.forEach((col) => {
-        if (layout.gaps.includes(col)) return; // skip walkways
-        
-        const seatId = `${row}${col}`;
-        // Book between 5% and 15% of the seats randomly based on the seed
-        const bookingProbability = 0.05 + (seededRandom() * 0.1); 
-        if (seededRandom() < bookingProbability) {
-          generatedOccupied.push(seatId);
+    setLoadingSeats(true);
+    fetch(`/api/occupied-seats?hall=${encodeURIComponent(selectedHall)}&movieId=${selectedMovieId}&slot=${encodeURIComponent(selectedTimeSlot)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load occupied seats");
+        return res.json();
+      })
+      .then((data) => {
+        setOccupiedSeats(data.seats || []);
+      })
+      .catch((err) => {
+        console.error("Error loading occupied seats:", err);
+        // Fallback: Generate local seed-based occupied seats in case database server is loading
+        const layout = getHallSeatingLayout(selectedHall);
+        const key = `${selectedHall}-${selectedMovieId}-${selectedTimeSlot}`;
+        let seed = 0;
+        for (let i = 0; i < key.length; i++) {
+          seed += key.charCodeAt(i) * (i + 1);
         }
+        const seededRandom = () => {
+          const x = Math.sin(seed++) * 10000;
+          return x - Math.floor(x);
+        };
+        const generatedOccupied: string[] = [];
+        layout.rows.forEach((row) => {
+          layout.columns.forEach((col) => {
+            if (layout.gaps.includes(col)) return;
+            const seatId = `${row}${col}`;
+            const bookingProbability = 0.05 + (seededRandom() * 0.1); 
+            if (seededRandom() < bookingProbability) {
+              generatedOccupied.push(seatId);
+            }
+          });
+        });
+        setOccupiedSeats(generatedOccupied);
+      })
+      .finally(() => {
+        setLoadingSeats(false);
       });
-    });
-
-    setOccupiedSeats(generatedOccupied);
   }, [selectedHall, selectedMovieId, selectedTimeSlot]);
   
   // Carousel states
@@ -114,6 +157,7 @@ export default function App() {
 
   // Billing and Payment status overlays
   const [isPaymentOpen, setIsPaymentOpen] = useState<boolean>(false);
+  const [showMyBookingsModal, setShowMyBookingsModal] = useState<boolean>(false);
   const [viewState, setViewState] = useState<'LOBBY' | 'SUCCESS'>('LOBBY');
   const [successDetails, setSuccessDetails] = useState<{
     ticketId: string;
@@ -123,21 +167,22 @@ export default function App() {
   // 1. AUTO-CAROUSEL logic
   // Cycles through spotlit movie assets every 5 seconds unless paused or user has interacted
   useEffect(() => {
-    // Do not rotate if viewing success screens, checkout bills, when slot/seats are active, or if user manually interacted
-    if (viewState === 'SUCCESS' || isPaymentOpen || selectedTimeSlot || isCarouselPaused || hasUserInteracted) {
+    // Do not rotate if viewing success screens, checkout bills, when slot/seats are active, or if user manually interacted, or if empty
+    if (viewState === 'SUCCESS' || isPaymentOpen || selectedTimeSlot || isCarouselPaused || hasUserInteracted || movies.length === 0) {
       return;
     }
 
     const interval = setInterval(() => {
       setSelectedMovieId((currentId) => {
-        const index = MOVIES.findIndex((m) => m.id === currentId);
-        const nextIndex = (index + 1) % MOVIES.length;
-        return MOVIES[nextIndex].id;
+        const index = movies.findIndex((m) => m.id === currentId);
+        if (index === -1) return movies[0]?.id || currentId;
+        const nextIndex = (index + 1) % movies.length;
+        return movies[nextIndex].id;
       });
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [viewState, isPaymentOpen, selectedTimeSlot, isCarouselPaused, hasUserInteracted]);
+  }, [viewState, isPaymentOpen, selectedTimeSlot, isCarouselPaused, hasUserInteracted, movies]);
 
   // Reset secondary session selection when movie selection shifts
   const handleMovieSelect = (id: string) => {
@@ -198,7 +243,7 @@ export default function App() {
     setSelectedTimeSlot(null);
     setSuccessDetails(null);
     setHasUserInteracted(false);
-    setSelectedMovieId(MOVIES[0].id);
+    setSelectedMovieId(movies[0]?.id || MOVIES[0].id);
     setViewState('LOBBY');
     // Scroll smoothly to top on layout re-entries
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -221,6 +266,8 @@ export default function App() {
           user={user}
           onSignOut={handleUserSignOut}
           onSignInClick={() => setShowAuthModal(true)}
+          onMyBookingsClick={() => setShowMyBookingsModal(true)}
+          onAdminClick={() => setShowAdminModal(true)}
         />
 
         <AnimatePresence mode="wait">
@@ -236,6 +283,7 @@ export default function App() {
               <NowShowingCarousel
                 selectedMovieId={selectedMovieId}
                 onMovieSelect={handleMovieSelect}
+                movies={movies}
               />
 
               {/* Main Booking Content Grid split */}
@@ -246,6 +294,7 @@ export default function App() {
                   <MovieGrid
                     selectedMovieId={selectedMovieId}
                     onMovieSelect={handleMovieSelect}
+                    movies={movies}
                   />
 
                   <TimeSlots
@@ -344,12 +393,37 @@ export default function App() {
           )}
         </AnimatePresence>
 
+        {/* My Bookings History Ledger Overlay */}
+        <AnimatePresence>
+          {showMyBookingsModal && (
+            <MyBookingsModal
+              isOpen={showMyBookingsModal}
+              onClose={() => setShowMyBookingsModal(false)}
+              userEmail={user?.email || ''}
+            />
+          )}
+        </AnimatePresence>
+
         {/* Onboarding Authentication Overlay Portal */}
         <AnimatePresence>
           {showAuthModal && (
             <OnboardingAuthModal
               onSignIn={handleUserSignIn}
               onLater={handleLater}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Admin Panel Modal Overlay Portal */}
+        <AnimatePresence>
+          {showAdminModal && (
+            <AdminPanelModal
+              isOpen={showAdminModal}
+              onClose={() => {
+                setShowAdminModal(false);
+                loadDynamicMovies(); // reload movie catalog so edits are immediately visible
+              }}
+              onMoviesUpdated={loadDynamicMovies}
             />
           )}
         </AnimatePresence>

@@ -1,15 +1,15 @@
 import React from 'react';
 import { Star, Film, Check, Play } from 'lucide-react';
 import { Movie } from '../types';
-import { MOVIES } from '../data';
 import { motion } from 'motion/react';
 
 interface MovieGridProps {
   selectedMovieId: string;
   onMovieSelect: (id: string) => void;
+  movies: Movie[];
 }
 
-export default function MovieGrid({ selectedMovieId, onMovieSelect }: MovieGridProps) {
+export default function MovieGrid({ selectedMovieId, onMovieSelect, movies }: MovieGridProps) {
   return (
     <section className="space-y-6" id="now-showing-grid-section">
       {/* Dynamic Header */}
@@ -36,14 +36,14 @@ export default function MovieGrid({ selectedMovieId, onMovieSelect }: MovieGridP
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400/50 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400"></span>
             </span>
-            <span className="tracking-widest uppercase font-mono">{MOVIES.length} EXHIBITIONS LIVE today</span>
+            <span className="tracking-widest uppercase font-mono">{movies.length} EXHIBITIONS LIVE today</span>
           </div>
         </div>
       </div>
 
       {/* Grid container */}
       <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 lg:gap-8">
-        {MOVIES.map((movie, index) => {
+        {movies.map((movie, index) => {
           const isActive = movie.id === selectedMovieId;
           return (
             <motion.div

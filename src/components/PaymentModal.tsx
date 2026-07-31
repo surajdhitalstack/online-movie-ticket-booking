@@ -70,16 +70,61 @@ export default function PaymentModal({
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const generatedTicketId = `QFX-${randomPart}-${randomSuffix}`;
       
-      setStatus('success');
-      setProcessing(false);
-      
-      // Delay success navigation slightly to show successful validation checkmark
-      setTimeout(() => {
-        onPaymentSuccess(paymentMethod, generatedTicketId);
-        onClose();
-        // Reset states
-        setStatus('idle');
-      }, 800);
+      // Save ticket to persistent backend / database
+      const savedUser = (() => {
+        try {
+          const saved = localStorage.getItem('cinepremium_user');
+          return saved ? JSON.parse(saved) : null;
+        } catch {
+          return null;
+        }
+      })();
+
+      const ticketPayload = {
+        ticketId: generatedTicketId,
+        movieId: movie.id,
+        movieTitle: movie.title,
+        hall: selectedHall,
+        slot: selectedSlot,
+        seats: selectedSeats,
+        totalPrice: totalPrice,
+        paymentMethod: paymentMethod,
+        userEmail: savedUser?.email || 'guest',
+        userName: savedUser?.name || 'Guest Patron'
+      };
+
+      fetch('/api/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(ticketPayload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log('Ticket saved to database successfully:', data);
+        setStatus('success');
+        setProcessing(false);
+        
+        // Delay success navigation slightly to show successful validation checkmark
+        setTimeout(() => {
+          onPaymentSuccess(paymentMethod, generatedTicketId);
+          onClose();
+          // Reset states
+          setStatus('idle');
+        }, 800);
+      })
+      .catch(err => {
+        console.error('Error saving ticket to database:', err);
+        // Fallback: Proceed client-side anyway to keep UX unbroken
+        setStatus('success');
+        setProcessing(false);
+        setTimeout(() => {
+          onPaymentSuccess(paymentMethod, generatedTicketId);
+          onClose();
+          setStatus('idle');
+        }, 800);
+      });
     }, 1805);
   };
 

@@ -1,13 +1,15 @@
 import React from 'react';
-import { MapPin, Film, User, LogOut, Key } from 'lucide-react';
+import { MapPin, Film, User, LogOut, Key, Ticket, Shield } from 'lucide-react';
 import { CINEMA_LOCATIONS } from '../data';
 
 interface HeaderProps {
   selectedHall: string;
   onHallChange: (hall: string) => void;
-  user: { name: string; email: string } | null;
+  user: { name: string; email: string; isAdmin?: boolean } | null;
   onSignOut: () => void;
   onSignInClick: () => void;
+  onMyBookingsClick: () => void;
+  onAdminClick: () => void;
 }
 
 export default function Header({ 
@@ -15,7 +17,9 @@ export default function Header({
   onHallChange,
   user,
   onSignOut,
-  onSignInClick
+  onSignInClick,
+  onMyBookingsClick,
+  onAdminClick
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-neutral-950/40 backdrop-blur-3xl">
@@ -52,37 +56,63 @@ export default function Header({
         <div className="flex flex-col sm:flex-row items-center gap-3.5 w-full md:w-auto">
           {/* User Status Profile */}
           {user ? (
-            <div className="flex items-center gap-2.5 bg-white/5 backdrop-blur-md border border-white/10 px-3.5 py-1.5 rounded-xl text-left" id="user-verified-profile-tag">
-              <div className="h-6.5 w-6.5 rounded-full bg-white/5 border border-white/20 flex items-center justify-center relative shrink-0">
-                <User className="h-3 w-3 text-neutral-200" />
-                <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-neutral-900" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-mono text-[7.5px] text-neutral-400 tracking-wider uppercase leading-none font-bold">
-                  PATRON EXCLUSIVITY
-                </span>
-                <span className="text-xs font-semibold text-neutral-200 line-clamp-1">
-                  {user.name}
-                </span>
-              </div>
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-start">
+              {/* Admin Panel Trigger - Visible ONLY if user is Admin */}
+              {user.isAdmin && (
+                <button
+                  type="button"
+                  onClick={onAdminClick}
+                  className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 active:scale-98 border border-rose-500/20 px-3.5 py-1.5 rounded-xl text-[10px] font-bold text-rose-400 tracking-wider uppercase transition-all duration-300 cursor-pointer shrink-0"
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  <span>ADMIN PANEL</span>
+                </button>
+              )}
+
+              {/* My Bookings Trigger */}
               <button
                 type="button"
-                onClick={onSignOut}
-                className="ml-2 text-neutral-400 hover:text-red-400 active:scale-95 transition-all p-1"
-                title="Sign out of Session"
+                onClick={onMyBookingsClick}
+                className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 active:scale-98 border border-amber-500/20 px-3.5 py-1.5 rounded-xl text-[10px] font-bold text-amber-400 tracking-wider uppercase transition-all duration-300 cursor-pointer shrink-0"
               >
-                <LogOut className="h-3.5 w-3.5" />
+                <Ticket className="h-3.5 w-3.5" />
+                <span>MY BOOKINGS</span>
               </button>
+
+              <div className="flex items-center gap-2.5 bg-white/5 backdrop-blur-md border border-white/10 px-3.5 py-1.5 rounded-xl text-left shrink-0" id="user-verified-profile-tag">
+                <div className="h-6.5 w-6.5 rounded-full bg-white/5 border border-white/20 flex items-center justify-center relative shrink-0">
+                  <User className="h-3 w-3 text-neutral-200" />
+                  <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-neutral-900" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-mono text-[7.5px] text-neutral-400 tracking-wider uppercase leading-none font-bold">
+                    PATRON EXCLUSIVITY
+                  </span>
+                  <span className="text-xs font-semibold text-neutral-200 line-clamp-1">
+                    {user.name}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className="ml-2 text-neutral-400 hover:text-red-400 active:scale-95 transition-all p-1 cursor-pointer"
+                  title="Sign out of Session"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={onSignInClick}
-              className="flex items-center gap-2 bg-white/5 hover:bg-white/10 active:scale-98 border border-white/10 px-4 py-2 rounded-xl text-[10px] font-medium text-white tracking-wider uppercase transition-all duration-300"
-            >
-              <Key className="h-3 w-3 text-amber-400" />
-              <span>GUEST PATRON LOGIN</span>
-            </button>
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-start">
+              <button
+                type="button"
+                onClick={onSignInClick}
+                className="flex items-center gap-2 bg-white/5 hover:bg-white/10 active:scale-98 border border-white/10 px-3.5 py-1.5 rounded-xl text-[10px] font-medium text-white tracking-wider uppercase transition-all duration-300 cursor-pointer shrink-0"
+              >
+                <Key className="h-3 w-3 text-amber-400" />
+                <span>GUEST PATRON LOGIN</span>
+              </button>
+            </div>
           )}
 
           {/* Location Dropdown selector */}
